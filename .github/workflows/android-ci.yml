@@ -127,36 +127,9 @@ jobs:
           echo "stars=$STARS" >> $GITHUB_OUTPUT
           echo "downloads=$DOWNLOADS" >> $GITHUB_OUTPUT
 
-      - name: Generate icon from iconBg
+      - name: Use existing icon
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y imagemagick
-
-          # Read iconBg from app-manifest.json; fall back to a solid colour if absent
-          ICON_BG=$(python3 -c "
-          import json
-          try:
-              m = json.load(open('source/app-manifest.json'))
-              print(m.get('iconBg', '#7c3aed'))
-          except:
-              print('#7c3aed')
-          ")
-
-          # Extract the two colours from a CSS linear-gradient, or use a single solid colour
-          COLOR1=$(echo "$ICON_BG" | grep -oP '#[0-9a-fA-F]{3,8}' | head -1 || echo "#0f0a1a")
-          COLOR2=$(echo "$ICON_BG" | grep -oP '#[0-9a-fA-F]{3,8}' | tail -1 || echo "#7c3aed")
-
-          convert -size 256x256 \
-            gradient:"${COLOR1}-${COLOR2}" \
-            -rotate 135 \
-            -gravity center \
-            -extent 256x256 \
-            icon.png
-
-      - name: Copy icon to AppVault
-        run: |
-          mkdir -p appvault/icons
-          cp icon.png appvault/icons/${{ env.APP_ID }}.png
+          cp main/app/src/main/res/ic_launcher-web.png appvault/icons/${{ env.APP_ID }}.png
 
       - name: Update apps.json
         run: |
