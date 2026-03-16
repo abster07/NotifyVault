@@ -95,6 +95,7 @@ jobs:
           repository: abster07/app-vault
           token: ${{ secrets.GITHUB_TOKEN }}
           path: appvault
+          persist-credentials: false
 
       - name: Fetch repo stats
         id: stats
