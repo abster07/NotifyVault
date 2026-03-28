@@ -1,11 +1,17 @@
 package com.notifyvault.ui.screens
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,6 +44,23 @@ import kotlinx.coroutines.delay
 fun PermissionScreen(onPermissionGranted: () -> Unit) {
     val context = LocalContext.current
     var visible by remember { mutableStateOf(false) }
+
+    val notificationPermissionGranted = remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationPermissionGranted.value = granted
+        if (granted && NotificationPermissionHelper.isNotificationListenerEnabled(context)) {
+            onPermissionGranted()
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -134,7 +157,14 @@ fun PermissionScreen(onPermissionGranted: () -> Unit) {
                     Triple(Icons.Default.Search, "Full-text search", "Find any notification instantly"),
                 )
                 features.forEach { (icon, title, desc) ->
-                    FeatureRow(icon = icon, title = title, description = desc)
+                    FeatureRow(
+                        icon = icon,
+                        title = title,
+                        description = desc,
+                        onClick = {
+                            Toast.makeText(context, title, Toast.LENGTH_SHORT).show()
+                        }
+                    )
                     Spacer(Modifier.height(16.dp))
                 }
 
@@ -159,6 +189,27 @@ fun PermissionScreen(onPermissionGranted: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationPermissionGranted.value) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Notifications, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Allow notifications",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -236,12 +287,13 @@ fun PermissionScreen(onPermissionGranted: () -> Unit) {
 }
 
 @Composable
-private fun FeatureRow(icon: ImageVector, title: String, description: String) {
+private fun FeatureRow(icon: ImageVector, title: String, description: String, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
