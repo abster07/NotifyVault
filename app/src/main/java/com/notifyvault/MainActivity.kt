@@ -26,7 +26,6 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Android 12+ native splash — keeps it visible until we're ready
         val splashScreen = installSplashScreen()
         var keepSplash = true
         splashScreen.setKeepOnScreenCondition { keepSplash }
@@ -39,9 +38,63 @@ class MainActivity : ComponentActivity() {
             val darkTheme by viewModel.darkTheme.collectAsState()
             NotifyVaultTheme(darkTheme = darkTheme) {
                 val navController = rememberNavController()
-                val hasPermission = remember {
-                    NotificationPermissionHelper.isNotificationListenerEnabled(this)
+                var hasPermission by remember {
+                    mutableStateOf(NotificationPermissionHelper.isNotificationListenerEnabled(this@MainActivity))
                 }
+
+                val startDest = if (hasPermission) "splash" else "permission"
+
+                NavHost(navController = navController, startDestination = startDest) {
+                    composable("splash") {
+                        SplashScreen(
+                            onFinished = {
+                                keepSplash = false
+                                navController.navigate("home") {
+                                    popUpTo("splash") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                    composable("permission") {
+                        keepSplash = false
+                        PermissionScreen(
+                            onPermissionGranted = {
+                                hasPermission = true
+                                navController.navigate("splash") {
+                                    popUpTo("permission") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                    composable("home") {
+                        HomeScreen(
+                            viewModel = viewModel,
+                            onNavigateToStats = { navController.navigate("stats") },
+                            onNavigateToSettings = { navController.navigate("settings") }
+                        )
+                    }
+                    composable("stats") {
+                        StatsScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val hasPermission = NotificationPermissionHelper.isNotificationListenerEnabled(this)
+    }
+}
 
                 // Determine start destination
                 val startDest = if (hasPermission) "splash" else "permission"
